@@ -40,7 +40,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "PLR2004", "INP001", "D", "ANN401"]  # JSON de test = Any
+"tests/*" = ["S101", "PLR2004", "INP001", "D", "ANN401", "EM101"]  # JSON de test = Any ; messages d'erreur litteraux
 "tests/conftest.py" = ["N815"]  # do_GET / do_POST : noms imposes par http.server
 "tools/*" = ["T201", "INP001"]
 

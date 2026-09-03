@@ -13,9 +13,11 @@ from neo_box.features.app.application.ports import (
     Clock,
     Controls,
     EnrollmentStatus,
+    Reporter,
     StateProbe,
 )
 from neo_box.features.display.ports import Display
+from neo_box.features.status.domain.diagnosis import diagnose
 from neo_box.shared.drawing import Frame
 from neo_box.shared.layout import TextMeasurer
 
@@ -32,6 +34,7 @@ class Runtime:
     probe: StateProbe
     enrollment: EnrollmentStatus
     controls: Controls
+    reporter: Reporter
     clock: Clock
     measurer: TextMeasurer
     refresh_seconds: float = 30.0
@@ -64,9 +67,12 @@ class Runtime:
         return False
 
     def _refresh(self) -> None:
-        self.app.update_state(self.probe.read())
+        state = self.probe.read()
+        self.app.update_state(state)
         if self.app.token is not None and self.enrollment.is_enrolled():
             self.app.enrolled()
+        error = diagnose(state)
+        self.reporter.report(state, error.code if error else None)
 
     def _show_if_changed(self) -> None:
         frame = self.app.frame(self.measurer)

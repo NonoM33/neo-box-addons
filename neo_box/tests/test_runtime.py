@@ -62,6 +62,14 @@ class FakeControls:
 
 
 @dataclass
+class FakeReporter:
+    reports: list[tuple[BoxState, str | None]] = field(default_factory=list)
+
+    def report(self, state: BoxState, error_code: str | None) -> None:
+        self.reports.append((state, error_code))
+
+
+@dataclass
 class FakeClock:
     now: float = 0.0
 
@@ -79,6 +87,7 @@ class Harness:
     probe: FakeProbe
     enrollment: FakeEnrollment
     controls: FakeControls
+    reporter: FakeReporter
     clock: FakeClock
     runtime: Runtime
 
@@ -86,6 +95,7 @@ class Harness:
 def harness(fixed: FakeButtons | None = None, token: ProvisioningToken | None = None) -> Harness:
     display, buttons = FakeDisplay(), fixed or FakeButtons()
     probe, enrollment, controls, clock = FakeProbe(), FakeEnrollment(), FakeControls(), FakeClock()
+    reporter = FakeReporter()
     runtime = Runtime(
         app=BoxApp(help_base_url="https://aide", token=token),
         display=display,
@@ -93,11 +103,12 @@ def harness(fixed: FakeButtons | None = None, token: ProvisioningToken | None = 
         probe=probe,
         enrollment=enrollment,
         controls=controls,
+        reporter=reporter,
         clock=clock,
         measurer=FixedMeasurer(),
         refresh_seconds=30,
     )
-    return Harness(display, buttons, probe, enrollment, controls, clock, runtime)
+    return Harness(display, buttons, probe, enrollment, controls, reporter, clock, runtime)
 
 
 def test_le_premier_pas_lit_les_sondes_et_affiche() -> None:
@@ -152,3 +163,13 @@ def test_l_enrolement_est_detecte_au_rafraichissement() -> None:
     h.runtime.step()
     assert h.runtime.app.token is None
     assert len(h.display.shown) == 2
+
+
+def test_chaque_rafraichissement_remonte_l_etat_et_le_code_erreur() -> None:
+    h = harness()
+    h.runtime.step()
+    assert h.reporter.reports == [(BoxState(), None)]
+    h.probe.state = BoxState(internet=Link.DOWN)
+    h.clock.now = 30
+    h.runtime.step()
+    assert h.reporter.reports[-1] == (BoxState(internet=Link.DOWN), "E01")

@@ -56,3 +56,11 @@ class Clock(Protocol):
     def sleep(self, seconds: float) -> None:
         """Attend."""
         ...
+
+
+class Reporter(Protocol):
+    """Remonte la telemetrie au backend."""
+
+    def report(self, state: BoxState, error_code: str | None) -> None:
+        """Un heartbeat ; ne leve jamais."""
+        ...

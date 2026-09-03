@@ -34,8 +34,19 @@ class FileEnrollmentStore:
 
     def is_enrolled(self) -> bool:
         """True si des identifiants lisibles sont presents."""
+        return self.api_key() is not None
+
+    def api_key(self) -> str | None:
+        """La cle API, ou None tant que la box n'est pas enrolee."""
         try:
             data = json.loads(self.credentials_path.read_text())
         except (OSError, ValueError):
-            return False
-        return isinstance(data, dict) and bool(data.get("api_key"))
+            return None
+        key = data.get("api_key") if isinstance(data, dict) else None
+        return key if isinstance(key, str) and key else None
+
+    def save_credentials(self, api_key: str, box_id: str) -> None:
+        """Ecrit les identifiants ; le fichier n'est lisible que par le daemon."""
+        self.directory.mkdir(parents=True, exist_ok=True)
+        self.credentials_path.write_text(json.dumps({"api_key": api_key, "box_id": box_id}))
+        self.credentials_path.chmod(0o600)

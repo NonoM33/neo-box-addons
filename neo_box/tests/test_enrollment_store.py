@@ -19,3 +19,12 @@ def test_enrolee_seulement_avec_des_identifiants_lisibles(tmp_path: Path) -> Non
     assert store.is_enrolled() is False
     store.credentials_path.write_text(json.dumps({"api_key": "k", "tenant_id": "t"}))
     assert store.is_enrolled() is True
+
+
+def test_save_credentials_rend_la_cle_lisible_et_privee(tmp_path: Path) -> None:
+    store = FileEnrollmentStore(tmp_path / "data")
+    assert store.api_key() is None
+    store.save_credentials("neo_box_k", "b1")
+    assert store.api_key() == "neo_box_k"
+    assert store.is_enrolled() is True
+    assert oct(store.credentials_path.stat().st_mode & 0o777) == "0o600"
