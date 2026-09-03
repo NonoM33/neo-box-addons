@@ -1,0 +1,48 @@
+# Add-on Home Assistant OS : ecran e-ink, croix directionnelle et diagnostic de la box Neo.
+# Materiel cible : Raspberry Pi 4 B + Waveshare 2.13" e-Paper HAT (SPI) + 6 boutons GPIO.
+# VERIFIE SUR MATERIEL : NON (devices, droits SPI/GPIO a confirmer au premier boot).
+name: Neo Box
+version: 0.1.0
+slug: neo_box
+description: Ecran e-ink, boutons et diagnostic de la box domotique Neo
+url: https://neo-domotique.fr
+arch:
+  - aarch64
+  - armv7
+startup: services
+boot: auto
+init: false
+hassio_api: true
+hassio_role: manager
+homeassistant_api: true
+uart: true
+devices:
+  - /dev/spidev0.0
+  - /dev/gpiochip0
+  - /dev/gpiomem
+options:
+  display: waveshare
+  help_url: https://neo-domotique.fr
+  backend_url: ""
+  internet_check_url: https://neo-domotique.fr/
+  zigbee_device_glob: /dev/serial/by-id/*
+  button_pins:
+    UP: 5
+    DOWN: 6
+    LEFT: 13
+    RIGHT: 19
+    OK: 26
+    BACK: 21
+schema:
+  display: list(waveshare|png)
+  help_url: url
+  backend_url: str?
+  internet_check_url: url
+  zigbee_device_glob: str
+  button_pins:
+    UP: int
+    DOWN: int
+    LEFT: int
+    RIGHT: int
+    OK: int
+    BACK: int
