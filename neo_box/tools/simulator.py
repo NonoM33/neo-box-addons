@@ -27,6 +27,7 @@ from neo_box.features.app.application.runtime import Runtime
 from neo_box.features.app.infra.enrollment_store import FileEnrollmentStore
 from neo_box.features.display.infra.pillow_measurer import PillowTextMeasurer
 from neo_box.features.display.infra.png_display import PngDisplay
+from neo_box.features.mesh.infra.tailscale import NoMeshAgent
 from neo_box.features.status.domain.diagnosis import diagnose
 from neo_box.features.status.domain.state import BoxState, HaHealth, Link
 from neo_box.shared.keys import Key
@@ -99,7 +100,9 @@ class Simulator:
         self.probe = SimProbe()
         self.store = FileEnrollmentStore(OUT / "data")
         self.backend_url = os.environ.get("NEO_BACKEND_URL") or None
-        enrollment, support, reporter, _ = _cloud(self.backend_url, self.store, VERSION)
+        enrollment, support, reporter, _ = _cloud(
+            self.backend_url, self.store, NoMeshAgent(), VERSION
+        )
         from neo_box.features.app.infra.controls import LiveControls  # noqa: PLC0415
         from neo_box.features.app.infra.home_assistant import HomeAssistantClient  # noqa: PLC0415
         from neo_box.features.app.infra.supervisor import SupervisorClient  # noqa: PLC0415

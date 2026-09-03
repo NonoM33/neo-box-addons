@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from neo_box.features.app.infra.enrollment_store import FileEnrollmentStore
+from neo_box.features.mesh.domain.credentials import MeshCredentials
 
 
 def test_le_jeton_est_cree_une_fois_et_relu_ensuite(tmp_path: Path) -> None:
@@ -28,3 +29,12 @@ def test_save_credentials_rend_la_cle_lisible_et_privee(tmp_path: Path) -> None:
     assert store.api_key() == "neo_box_k"
     assert store.is_enrolled() is True
     assert oct(store.credentials_path.stat().st_mode & 0o777) == "0o600"
+
+
+def test_la_cle_mesh_est_gardee_avec_les_identifiants(tmp_path: Path) -> None:
+    store = FileEnrollmentStore(tmp_path)
+    assert store.mesh_credentials() is None
+    creds = MeshCredentials("https://mesh", "hskey", "neo-box-b1")
+    store.save_credentials("neo_box_k", "b1", creds)
+    assert store.mesh_credentials() == creds
+    assert store.api_key() == "neo_box_k"

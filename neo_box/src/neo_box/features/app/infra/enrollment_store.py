@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from neo_box.features.enrollment.domain.token import ProvisioningToken
+from neo_box.features.mesh.domain.credentials import MeshCredentials
 
 
 @dataclass(frozen=True)
@@ -45,8 +46,25 @@ class FileEnrollmentStore:
         key = data.get("api_key") if isinstance(data, dict) else None
         return key if isinstance(key, str) and key else None
 
-    def save_credentials(self, api_key: str, box_id: str) -> None:
-        """Ecrit les identifiants ; le fichier n'est lisible que par le daemon."""
+    def save_credentials(
+        self, api_key: str, box_id: str, mesh: MeshCredentials | None = None
+    ) -> None:
+        """Ecrit les identifiants (et la cle mesh) ; le fichier n'est lisible que par le daemon."""
         self.directory.mkdir(parents=True, exist_ok=True)
-        self.credentials_path.write_text(json.dumps({"api_key": api_key, "box_id": box_id}))
+        payload: dict[str, object] = {"api_key": api_key, "box_id": box_id}
+        if mesh is not None:
+            payload["mesh"] = {
+                "login_server": mesh.login_server,
+                "auth_key": mesh.auth_key,
+                "hostname": mesh.hostname,
+            }
+        self.credentials_path.write_text(json.dumps(payload))
         self.credentials_path.chmod(0o600)
+
+    def mesh_credentials(self) -> MeshCredentials | None:
+        """La cle mesh recue a l'enrolement, ou None."""
+        try:
+            data = json.loads(self.credentials_path.read_text())
+        except (OSError, ValueError):
+            return None
+        return MeshCredentials.from_payload(data.get("mesh")) if isinstance(data, dict) else None

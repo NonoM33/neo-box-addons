@@ -4,7 +4,7 @@ FROM ${BUILD_FROM}
 # Pillow (FreeType pour la police), spidev/gpiozero pour l'e-ink et les boutons.
 # Le driver Waveshare n'est pas publie sur PyPI : installe depuis le depot officiel.
 # VERIFIE SUR MATERIEL : NON.
-RUN apk add --no-cache freetype jpeg zlib libgpiod git \
+RUN apk add --no-cache freetype jpeg zlib libgpiod git tailscale \
     && pip install --no-cache-dir \
         "pillow>=11.0" "qrcode>=8.0" spidev gpiozero lgpio \
         "git+https://github.com/waveshareteam/e-Paper#subdirectory=RaspberryPi_JetsonNano/python" \

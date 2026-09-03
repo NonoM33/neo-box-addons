@@ -7,6 +7,7 @@ from typing import Any
 from neo_box.features.app.infra.home_assistant import HomeAssistantClient
 from neo_box.features.app.infra.http import HttpError, request_json
 from neo_box.features.app.infra.supervisor import SupervisorClient
+from neo_box.features.mesh.ports import MeshAgent
 from neo_box.features.status.domain.state import BoxState, HaHealth, Link
 
 
@@ -16,6 +17,7 @@ class LiveStateProbe:
 
     home_assistant: HomeAssistantClient
     supervisor: SupervisorClient
+    mesh: MeshAgent
     internet_check_url: str
     cloud_health_url: str | None
     zigbee_device_glob: str
@@ -28,7 +30,7 @@ class LiveStateProbe:
         return BoxState(
             internet=_reachable(self.internet_check_url),
             cloud=_reachable(self.cloud_health_url) if self.cloud_health_url else Link.UNKNOWN,
-            mesh=Link.UNKNOWN,
+            mesh=self.mesh.status(),
             home_assistant=self._ha_health(core),
             zigbee_coordinator=_coordinator_present(self.zigbee_device_glob),
             zigbee_devices=0,

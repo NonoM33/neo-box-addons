@@ -19,6 +19,8 @@ from neo_box.features.display.infra.pillow_measurer import PillowTextMeasurer
 from neo_box.features.display.infra.png_display import PngDisplay
 from neo_box.features.display.ports import Display
 from neo_box.features.enrollment.application.enroll import EnrollmentService
+from neo_box.features.mesh.infra.tailscale import NoMeshAgent, TailscaleAgent
+from neo_box.features.mesh.ports import MeshAgent
 from neo_box.features.status.domain.state import BoxState
 from neo_box.shared.keys import Key
 
@@ -67,8 +69,12 @@ def _buttons(spec: str) -> Buttons:
     return GpioButtons(pins)
 
 
+def _mesh_agent(kind: str, data_dir: Path) -> MeshAgent:
+    return TailscaleAgent(data_dir / "mesh") if kind == "tailscale" else NoMeshAgent()
+
+
 def _cloud(
-    backend_url: str | None, store: FileEnrollmentStore, version: str
+    backend_url: str | None, store: FileEnrollmentStore, mesh: MeshAgent, version: str
 ) -> tuple[EnrollmentStatus, SupportPort, Reporter, str | None]:
     """Sans backend, la box vit seule : enrolement local, pas d'assistance, pas de heartbeat."""
     if not backend_url:
@@ -76,7 +82,7 @@ def _cloud(
     backend = BackendClient(backend_url, store.api_key)
     serial = hardware_id(os.environ.get("NEO_HARDWARE_ID", "unknown"))
     return (
-        EnrollmentService(store, backend, serial, version),
+        EnrollmentService(store, backend, mesh, serial, version),
         BackendSupport(backend),
         BackendReporter(backend, store.api_key),
         f"{backend_url.rstrip('/')}/health",
@@ -96,14 +102,17 @@ def main() -> None:
     home_assistant = HomeAssistantClient(
         env.get("NEO_HA_URL", "http://supervisor/core/api"), supervisor_token
     )
-    store = FileEnrollmentStore(Path(env.get("NEO_DATA_DIR", "/data")))
+    data_dir = Path(env.get("NEO_DATA_DIR", "/data"))
+    store = FileEnrollmentStore(data_dir)
     version = env.get("NEO_VERSION", "dev")
+    mesh = _mesh_agent(env.get("NEO_MESH", "none"), data_dir)
     enrollment, support, reporter, cloud_health_url = _cloud(
-        env.get("NEO_BACKEND_URL") or None, store, version
+        env.get("NEO_BACKEND_URL") or None, store, mesh, version
     )
     probe = LiveStateProbe(
         home_assistant=home_assistant,
         supervisor=supervisor,
+        mesh=mesh,
         internet_check_url=env.get("NEO_INTERNET_CHECK_URL", "https://neo-domotique.fr/"),
         cloud_health_url=cloud_health_url,
         zigbee_device_glob=env.get("NEO_ZIGBEE_DEVICE_GLOB", "/dev/serial/by-id/*"),

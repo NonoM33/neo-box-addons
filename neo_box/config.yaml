@@ -15,6 +15,9 @@ init: false
 hassio_api: true
 hassio_role: manager
 homeassistant_api: true
+# Reseau de l'hote : l'agent mesh (tailscale userspace) expose ainsi Home Assistant
+# (localhost:8123) aux postes ops sans TUN ni NET_ADMIN.
+host_network: true
 uart: true
 devices:
   - /dev/spidev0.0
@@ -22,6 +25,7 @@ devices:
   - /dev/gpiomem
 options:
   display: waveshare
+  mesh: tailscale
   help_url: https://neo-domotique.fr
   backend_url: ""
   internet_check_url: https://neo-domotique.fr/
@@ -35,6 +39,7 @@ options:
     BACK: 21
 schema:
   display: list(waveshare|png)
+  mesh: list(tailscale|none)
   help_url: url
   backend_url: str?
   internet_check_url: url

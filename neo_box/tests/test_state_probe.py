@@ -3,6 +3,7 @@ from pathlib import Path
 from neo_box.features.app.infra.home_assistant import HomeAssistantClient
 from neo_box.features.app.infra.state_probe import LiveStateProbe
 from neo_box.features.app.infra.supervisor import SupervisorClient
+from neo_box.features.mesh.infra.tailscale import NoMeshAgent
 from neo_box.features.status.domain.state import HaHealth, Link
 from tests.conftest import LocalServer
 
@@ -11,6 +12,7 @@ def probe(server: LocalServer, tmp_path: Path) -> LiveStateProbe:
     return LiveStateProbe(
         home_assistant=HomeAssistantClient(f"{server.url}/core/api", "t"),
         supervisor=SupervisorClient(server.url, "t"),
+        mesh=NoMeshAgent(),
         internet_check_url=f"{server.url}/internet",
         cloud_health_url=f"{server.url}/health",
         zigbee_device_glob=str(tmp_path / "by-id" / "usb-*"),
