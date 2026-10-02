@@ -10,6 +10,7 @@ def test_le_menu_principal_couvre_les_gestes_de_l_installateur() -> None:
     actions = [item.action for item in MAIN_ITEMS]
     assert actions == [
         MenuAction.PERMIT_JOIN,
+        MenuAction.SHOW_PAIRING,
         MenuAction.SUPPORT_SESSION,
         MenuAction.SHOW_NETWORK,
         MenuAction.REBOOT,

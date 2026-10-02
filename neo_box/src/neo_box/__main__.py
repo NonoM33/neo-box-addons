@@ -6,21 +6,38 @@ import time
 from pathlib import Path
 
 from neo_box.features.app.application.box_app import BoxApp
-from neo_box.features.app.application.ports import Buttons, EnrollmentStatus, Reporter
+from neo_box.features.app.application.ports import (
+    Buttons,
+    EnrollmentStatus,
+    HaTokenRegistrar,
+    Reporter,
+)
 from neo_box.features.app.application.runtime import Runtime
-from neo_box.features.app.infra.backend import BackendClient, BackendReporter, BackendSupport
+from neo_box.features.app.infra.backend import (
+    BackendClient,
+    BackendHaTokenRegistrar,
+    BackendReporter,
+    BackendSupport,
+)
 from neo_box.features.app.infra.controls import LiveControls, SupportPort, SupportUnavailable
 from neo_box.features.app.infra.enrollment_store import FileEnrollmentStore
 from neo_box.features.app.infra.hardware import hardware_id
 from neo_box.features.app.infra.home_assistant import HomeAssistantClient
 from neo_box.features.app.infra.state_probe import LiveStateProbe
 from neo_box.features.app.infra.supervisor import SupervisorClient
+from neo_box.features.config.application.config_sync import (
+    BackendConfig,
+    ConfigSync,
+    NoopConfigApplier,
+)
+from neo_box.features.config.infra.config_store import FileConfigStore
 from neo_box.features.display.infra.pillow_measurer import PillowTextMeasurer
 from neo_box.features.display.infra.png_display import PngDisplay
 from neo_box.features.display.ports import Display
 from neo_box.features.enrollment.application.enroll import EnrollmentService
 from neo_box.features.mesh.infra.tailscale import NoMeshAgent, TailscaleAgent
 from neo_box.features.mesh.ports import MeshAgent
+from neo_box.features.pairing.application.pairing import BackendPairing, NoPairing, PairingProvider
 from neo_box.features.status.domain.state import BoxState
 from neo_box.shared.keys import Key
 
@@ -75,16 +92,36 @@ def _mesh_agent(kind: str, data_dir: Path) -> MeshAgent:
 
 def _cloud(
     backend_url: str | None, store: FileEnrollmentStore, mesh: MeshAgent, version: str
-) -> tuple[EnrollmentStatus, SupportPort, Reporter, str | None]:
+) -> tuple[
+    EnrollmentStatus,
+    SupportPort,
+    Reporter,
+    PairingProvider,
+    ConfigSync | None,
+    HaTokenRegistrar | None,
+    str | None,
+]:
     """Sans backend, la box vit seule : enrolement local, pas d'assistance, pas de heartbeat."""
     if not backend_url:
-        return store, SupportUnavailable(), NoReporter(), None
+        return store, SupportUnavailable(), NoReporter(), NoPairing(), None, None, None
     backend = BackendClient(backend_url, store.api_key)
     serial = hardware_id(os.environ.get("NEO_HARDWARE_ID", "unknown"))
+    config = ConfigSync(
+        BackendConfig(backend),
+        NoopConfigApplier(),
+        FileConfigStore(store.directory / "config.json"),
+        BackendConfig(backend),
+    )
+    registrar = BackendHaTokenRegistrar(
+        backend, store.is_enrolled, lambda: os.environ.get("NEO_HA_TOKEN")
+    )
     return (
         EnrollmentService(store, backend, mesh, serial, version),
         BackendSupport(backend),
         BackendReporter(backend, store.api_key),
+        BackendPairing(backend),
+        config,
+        registrar,
         f"{backend_url.rstrip('/')}/health",
     )
 
@@ -106,7 +143,7 @@ def main() -> None:
     store = FileEnrollmentStore(data_dir)
     version = env.get("NEO_VERSION", "dev")
     mesh = _mesh_agent(env.get("NEO_MESH", "none"), data_dir)
-    enrollment, support, reporter, cloud_health_url = _cloud(
+    enrollment, support, reporter, pairing, config, ha_registrar, cloud_health_url = _cloud(
         env.get("NEO_BACKEND_URL") or None, store, mesh, version
     )
     probe = LiveStateProbe(
@@ -132,6 +169,9 @@ def main() -> None:
         probe=probe,
         enrollment=enrollment,
         controls=LiveControls(home_assistant, supervisor, support),
+        pairing=pairing,
+        config=config,
+        ha_registrar=ha_registrar,
         reporter=reporter,
         clock=SystemClock(),
         measurer=PillowTextMeasurer(),

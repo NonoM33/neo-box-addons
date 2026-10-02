@@ -13,10 +13,13 @@ from neo_box.features.app.application.ports import (
     Clock,
     Controls,
     EnrollmentStatus,
+    HaTokenRegistrar,
     Reporter,
     StateProbe,
 )
+from neo_box.features.config.application.config_sync import ConfigSync
 from neo_box.features.display.ports import Display
+from neo_box.features.pairing.application.pairing import PairingProvider
 from neo_box.features.status.domain.diagnosis import diagnose
 from neo_box.shared.drawing import Frame
 from neo_box.shared.layout import TextMeasurer
@@ -34,11 +37,14 @@ class Runtime:
     probe: StateProbe
     enrollment: EnrollmentStatus
     controls: Controls
+    pairing: PairingProvider
     reporter: Reporter
     clock: Clock
     measurer: TextMeasurer
     refresh_seconds: float = 30.0
     poll_seconds: float = 0.05
+    config: ConfigSync | None = None
+    ha_registrar: HaTokenRegistrar | None = None
     _last_frame: Frame | None = field(default=None, init=False)
     _last_refresh: float | None = field(default=None, init=False)
 
@@ -73,6 +79,10 @@ class Runtime:
             self.app.enrolled()
         error = diagnose(state)
         self.reporter.report(state, error.code if error else None)
+        if self.config is not None:
+            self.config.sync()
+        if self.ha_registrar is not None:
+            self.ha_registrar.register_if_enrolled()
 
     def _show_if_changed(self) -> None:
         frame = self.app.frame(self.measurer)
@@ -89,3 +99,5 @@ class Runtime:
                 self.controls.request_support_session()
             case Command.REBOOT:
                 self.controls.reboot()
+            case Command.SHOW_PAIRING:
+                self.app.show_pairing(self.pairing.fetch_code())

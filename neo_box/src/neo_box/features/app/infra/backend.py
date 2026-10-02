@@ -54,6 +54,57 @@ class BackendClient:
         )
         return payload if isinstance(payload, dict) else {}
 
+    def pairing_code(self) -> dict[str, Any]:
+        """Demande un code d'appairage client frais (usage unique, courte duree)."""
+        payload = request_json(
+            "POST",
+            f"{self._base}/api/boxes/me/pairing-code",
+            headers=self._auth(),
+            body={},
+            timeout=10.0,
+        )
+        return payload if isinstance(payload, dict) else {}
+
+    def get_config(self) -> dict[str, Any]:
+        """Tire la configuration désirée (GET /api/boxes/me/config)."""
+        payload = request_json(
+            "GET",
+            f"{self._base}/api/boxes/me/config",
+            headers=self._auth(),
+            timeout=10.0,
+        )
+        return payload if isinstance(payload, dict) else {}
+
+    def report_applied_config(self, config: dict[str, Any]) -> None:
+        """Accuse réception de la configuration appliquée."""
+        request_json(
+            "POST",
+            f"{self._base}/api/boxes/me/config/applied",
+            headers=self._auth(),
+            body=config,
+            timeout=10.0,
+        )
+
+    def report_snapshot(self, slug: str) -> None:
+        """Signale au backend un snapshot Home Assistant que la box vient de prendre."""
+        request_json(
+            "POST",
+            f"{self._base}/api/boxes/me/snapshots",
+            headers=self._auth(),
+            body={"slug": slug},
+            timeout=10.0,
+        )
+
+    def register_ha_token(self, token: str) -> None:
+        """Enregistre le jeton d'accès Home Assistant (long-lived) auprès du backend."""
+        request_json(
+            "POST",
+            f"{self._base}/api/boxes/me/ha-token",
+            headers=self._auth(),
+            body={"token": token},
+            timeout=10.0,
+        )
+
     def _auth(self) -> dict[str, str]:
         key = self._api_key()
         if key is None:
@@ -110,3 +161,34 @@ class BackendReporter:
             self._backend.heartbeat(state, error_code)
         except HttpError as exc:
             _LOGGER.warning("heartbeat echoue : %s", exc)
+
+
+class BackendHaTokenRegistrar:
+    """Enregistre le jeton HA de la box une seule fois, une fois la box enrôlée."""
+
+    def __init__(
+        self,
+        backend: BackendClient,
+        is_enrolled: Callable[[], bool],
+        token_provider: Callable[[], str | None],
+    ) -> None:
+        """Garde le client, la sonde d'enrôlement et la source du jeton."""
+        self._backend = backend
+        self._is_enrolled = is_enrolled
+        self._token_provider = token_provider
+        self._registered = False
+
+    def register_if_enrolled(self) -> None:
+        """Tente d'enregistrer le jeton ; silencieux tant que la box n'est pas enrôlée."""
+        if self._registered or not self._is_enrolled():
+            return
+        token = self._token_provider()
+        if token is None:
+            return
+        try:
+            self._backend.register_ha_token(token)
+        except HttpError:
+            _LOGGER.exception("enregistrement du jeton HA impossible")
+            return
+        self._registered = True
+        _LOGGER.info("jeton HA enregistré")

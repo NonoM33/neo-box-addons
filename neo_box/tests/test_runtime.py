@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from neo_box.features.app.application.box_app import BoxApp
 from neo_box.features.app.application.runtime import Runtime
 from neo_box.features.enrollment.domain.token import ProvisioningToken
+from neo_box.features.pairing.application.pairing import NoPairing, PairingProvider
+from neo_box.features.pairing.domain.code import PairingCode
 from neo_box.features.status.domain.state import BoxState, Link
 from neo_box.shared.drawing import Frame
 from neo_box.shared.keys import Key
@@ -62,6 +64,16 @@ class FakeControls:
 
 
 @dataclass
+class FakePairing:
+    code: PairingCode | None = None
+    calls: int = 0
+
+    def fetch_code(self) -> PairingCode | None:
+        self.calls += 1
+        return self.code
+
+
+@dataclass
 class FakeReporter:
     reports: list[tuple[BoxState, str | None]] = field(default_factory=list)
 
@@ -87,14 +99,20 @@ class Harness:
     probe: FakeProbe
     enrollment: FakeEnrollment
     controls: FakeControls
+    pairing: FakePairing
     reporter: FakeReporter
     clock: FakeClock
     runtime: Runtime
 
 
-def harness(fixed: FakeButtons | None = None, token: ProvisioningToken | None = None) -> Harness:
+def harness(
+    fixed: FakeButtons | None = None,
+    token: ProvisioningToken | None = None,
+    pairing: PairingProvider | None = None,
+) -> Harness:
     display, buttons = FakeDisplay(), fixed or FakeButtons()
     probe, enrollment, controls, clock = FakeProbe(), FakeEnrollment(), FakeControls(), FakeClock()
+    pairing = pairing or FakePairing()
     reporter = FakeReporter()
     runtime = Runtime(
         app=BoxApp(help_base_url="https://aide", token=token),
@@ -103,12 +121,13 @@ def harness(fixed: FakeButtons | None = None, token: ProvisioningToken | None = 
         probe=probe,
         enrollment=enrollment,
         controls=controls,
+        pairing=pairing,
         reporter=reporter,
         clock=clock,
         measurer=FixedMeasurer(),
         refresh_seconds=30,
     )
-    return Harness(display, buttons, probe, enrollment, controls, reporter, clock, runtime)
+    return Harness(display, buttons, probe, enrollment, controls, pairing, reporter, clock, runtime)
 
 
 def test_le_premier_pas_lit_les_sondes_et_affiche() -> None:

@@ -58,6 +58,14 @@ class Clock(Protocol):
         ...
 
 
+class HaTokenRegistrar(Protocol):
+    """Enregistre le jeton HA de la box auprès du backend, une fois enrôlée."""
+
+    def register_if_enrolled(self) -> None:
+        """Tente l'enregistrement ; sans effet tant que ce n'est pas le moment."""
+        ...
+
+
 class Reporter(Protocol):
     """Remonte la telemetrie au backend."""
 

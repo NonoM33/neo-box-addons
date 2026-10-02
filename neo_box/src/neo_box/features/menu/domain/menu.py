@@ -9,6 +9,7 @@ from neo_box.shared.keys import Key
 class MenuAction(Enum):
     """Ce qu'une entree de menu declenche quand on la valide."""
 
+    SHOW_PAIRING = auto()
     PERMIT_JOIN = auto()
     SUPPORT_SESSION = auto()
     SHOW_NETWORK = auto()
@@ -26,6 +27,7 @@ class MenuItem:
 
 MAIN_ITEMS: tuple[MenuItem, ...] = (
     MenuItem(MenuAction.PERMIT_JOIN, "Appairer un appareil Zigbee"),
+    MenuItem(MenuAction.SHOW_PAIRING, "Appairer le telephone du client"),
     MenuItem(MenuAction.SUPPORT_SESSION, "Ouvrir l'assistance a distance"),
     MenuItem(MenuAction.SHOW_NETWORK, "Reseau"),
     MenuItem(MenuAction.REBOOT, "Redemarrer la box"),

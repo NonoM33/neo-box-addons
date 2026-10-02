@@ -12,6 +12,8 @@ from neo_box.features.enrollment.domain.token import ProvisioningToken
 from neo_box.features.errors.domain.screen import error_screen
 from neo_box.features.menu.domain.menu import Menu, MenuAction
 from neo_box.features.menu.domain.screen import menu_screen
+from neo_box.features.pairing.domain.code import PairingCode
+from neo_box.features.pairing.domain.screen import pairing_screen
 from neo_box.features.status.domain.diagnosis import diagnose
 from neo_box.features.status.domain.screen import network_screen, status_screen
 from neo_box.features.status.domain.state import BoxState
@@ -27,17 +29,20 @@ class Mode(Enum):
     HOME = auto()
     MENU = auto()
     NETWORK = auto()
+    PAIRING = auto()
 
 
 class Command(Enum):
     """Un effet de bord demande par l'utilisateur, a executer hors du domaine."""
 
+    SHOW_PAIRING = auto()
     PERMIT_JOIN = auto()
     SUPPORT_SESSION = auto()
     REBOOT = auto()
 
 
 _COMMANDS = {
+    MenuAction.SHOW_PAIRING: Command.SHOW_PAIRING,
     MenuAction.PERMIT_JOIN: Command.PERMIT_JOIN,
     MenuAction.SUPPORT_SESSION: Command.SUPPORT_SESSION,
     MenuAction.REBOOT: Command.REBOOT,
@@ -50,6 +55,7 @@ class BoxApp:
 
     help_base_url: str
     token: ProvisioningToken | None = None
+    pairing_code: PairingCode | None = None
     state: BoxState = field(default_factory=BoxState)
     mode: Mode = field(init=False)
     menu: Menu = field(default_factory=Menu)
@@ -63,6 +69,11 @@ class BoxApp:
         self.token = None
         if self.mode is Mode.ENROLLING:
             self.mode = Mode.HOME
+
+    def show_pairing(self, code: PairingCode | None) -> None:
+        """Affiche le code d'appairage recu, ou revient au statut si aucun."""
+        self.pairing_code = code
+        self.mode = Mode.PAIRING if code is not None else Mode.HOME
 
     def update_state(self, state: BoxState) -> None:
         """Nouvelle photographie des sondes."""
@@ -83,6 +94,9 @@ class BoxApp:
             case Mode.NETWORK:
                 self.mode = Mode.HOME
                 return None
+            case Mode.PAIRING:
+                self.mode = Mode.HOME
+                return None
 
     def frame(self, measurer: TextMeasurer) -> Frame:
         """L'ecran a afficher pour l'etat courant."""
@@ -96,6 +110,11 @@ class BoxApp:
                 return menu_screen(self.menu, measurer)
             case Mode.NETWORK:
                 return network_screen(self.state, measurer)
+            case Mode.PAIRING:
+                if self.pairing_code is None:
+                    msg = "mode PAIRING sans code"
+                    raise RuntimeError(msg)
+                return pairing_screen(self.pairing_code, self.state.version, measurer)
             case Mode.HOME:
                 error = diagnose(self.state)
                 if error is not None:
@@ -110,5 +129,8 @@ class BoxApp:
             self.menu = self.menu.move(key)
             return None
         action = self.menu.selected.action
-        self.mode = Mode.NETWORK if action is MenuAction.SHOW_NETWORK else Mode.HOME
+        if action is MenuAction.SHOW_NETWORK:
+            self.mode = Mode.NETWORK
+        else:
+            self.mode = Mode.HOME
         return _COMMANDS.get(action)

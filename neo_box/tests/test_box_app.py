@@ -2,6 +2,7 @@ from dataclasses import replace
 
 from neo_box.features.app.application.box_app import BoxApp, Command, Mode
 from neo_box.features.enrollment.domain.token import ProvisioningToken
+from neo_box.features.pairing.domain.code import PairingCode
 from neo_box.features.status.domain.state import BoxState, HaHealth, Link
 from neo_box.shared.drawing import Qr, Text
 from neo_box.shared.keys import Key
@@ -67,7 +68,7 @@ def test_valider_appairage_produit_la_commande_et_revient_au_statut() -> None:
 def test_naviguer_jusqu_au_redemarrage() -> None:
     app = BoxApp(help_base_url="https://aide", state=HEALTHY)
     app.on_key(Key.OK)
-    for _ in range(3):
+    for _ in range(4):
         assert app.on_key(Key.DOWN) is None
     assert app.on_key(Key.OK) is Command.REBOOT
 
@@ -75,6 +76,7 @@ def test_naviguer_jusqu_au_redemarrage() -> None:
 def test_reseau_ouvre_l_ecran_reseau_et_toute_touche_en_sort(fixed: FixedMeasurer) -> None:
     app = BoxApp(help_base_url="https://aide", state=HEALTHY)
     app.on_key(Key.OK)
+    app.on_key(Key.DOWN)
     app.on_key(Key.DOWN)
     app.on_key(Key.DOWN)
     assert app.on_key(Key.OK) is None
@@ -102,3 +104,19 @@ def test_une_erreur_remplace_le_statut_mais_pas_le_menu(fixed: FixedMeasurer) ->
     assert "E01" in texts(app, fixed)
     app.update_state(HEALTHY)
     assert "E01" not in texts(app, fixed)
+
+
+def test_appairer_le_telephone_affiche_le_qr_puis_toute_touche_en_sort(fixed: FixedMeasurer) -> None:
+    app = BoxApp(help_base_url="https://aide", state=HEALTHY)
+    app.on_key(Key.OK)
+    assert app.on_key(Key.DOWN) is None  # SHOW_PAIRING (index 1)
+    assert app.on_key(Key.OK) is Command.SHOW_PAIRING
+    assert mode(app) is Mode.HOME  # la bascule vers PAIRING vient de show_pairing
+    app.show_pairing(PairingCode("ABCDEFGHJKMN"))
+    assert mode(app) is Mode.PAIRING
+    assert any(
+        isinstance(p, Qr) and p.data == "NEO:APPAIRER:ABCDEFGHJKMN"
+        for p in app.frame(fixed).primitives
+    )
+    app.on_key(Key.RIGHT)
+    assert mode(app) is Mode.HOME
