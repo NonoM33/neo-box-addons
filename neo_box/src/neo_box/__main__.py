@@ -39,6 +39,11 @@ from neo_box.features.mesh.infra.tailscale import NoMeshAgent, TailscaleAgent
 from neo_box.features.mesh.ports import MeshAgent
 from neo_box.features.pairing.application.pairing import BackendPairing, NoPairing, PairingProvider
 from neo_box.features.status.domain.state import BoxState
+from neo_box.features.wifi_setup.application.wifi_setup import WifiSetup
+from neo_box.features.wifi_setup.infra.ap import HostapdAp
+from neo_box.features.wifi_setup.infra.internet import UrlInternetChecker
+from neo_box.features.wifi_setup.infra.portal import HttpPortal
+from neo_box.features.wifi_setup.infra.wifi_join import NmcliJoiner
 from neo_box.shared.keys import Key
 
 
@@ -132,6 +137,17 @@ def main() -> None:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     env = os.environ
+
+    # Installation WiFi : sans Internet, ouvrir un point d'accès + portail captif,
+    # recueillir le WiFi de la maison, s'y connecter, puis reprendre le cycle normal.
+    WifiSetup(
+        HostapdAp(ssid=env.get("NEO_AP_SSID", "NeoBox-Setup")),
+        HttpPortal(ap_ssid=env.get("NEO_AP_SSID", "NeoBox-Setup")),
+        NmcliJoiner(),
+        UrlInternetChecker(env.get("NEO_INTERNET_CHECK_URL", "https://neo-domotique.fr/")),
+        SystemClock(),
+    ).run()
+
     supervisor_token = env.get("SUPERVISOR_TOKEN", "")
     supervisor = SupervisorClient(
         env.get("NEO_SUPERVISOR_URL", "http://supervisor"), supervisor_token

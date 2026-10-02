@@ -7,6 +7,7 @@ export NEO_MESH="$(bashio::config 'mesh')"
 export NEO_HELP_URL="$(bashio::config 'help_url')"
 export NEO_BACKEND_URL="$(bashio::config 'backend_url')"
 export NEO_INTERNET_CHECK_URL="$(bashio::config 'internet_check_url')"
+export NEO_AP_SSID="$(bashio::config 'ap_ssid')"
 export NEO_ZIGBEE_DEVICE_GLOB="$(bashio::config 'zigbee_device_glob')"
 export NEO_VERSION="v$(bashio::addon.version)"
 export NEO_DATA_DIR=/data

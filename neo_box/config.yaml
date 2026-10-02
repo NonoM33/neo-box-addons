@@ -18,6 +18,8 @@ homeassistant_api: true
 # Reseau de l'hote : l'agent mesh (tailscale userspace) expose ainsi Home Assistant
 # (localhost:8123) aux postes ops sans TUN ni NET_ADMIN.
 host_network: true
+privileged: true
+host_dbus: true
 uart: true
 devices:
   - /dev/spidev0.0
@@ -28,6 +30,7 @@ options:
   mesh: tailscale
   help_url: https://neo-domotique.fr
   backend_url: ""
+  ap_ssid: NeoBox-Setup
   internet_check_url: https://neo-domotique.fr/
   zigbee_device_glob: /dev/serial/by-id/*
   button_pins:
@@ -42,6 +45,7 @@ schema:
   mesh: list(tailscale|none)
   help_url: url
   backend_url: str?
+  ap_ssid: str
   internet_check_url: url
   zigbee_device_glob: str
   button_pins:
